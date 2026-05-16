@@ -5,6 +5,7 @@ import cv2
 import pickle
 
 from PIL import Image
+
 from tensorflow.keras.preprocessing.sequence import pad_sequences
 from tensorflow.keras.applications.mobilenet_v2 import preprocess_input
 
@@ -22,6 +23,7 @@ st.set_page_config(
 # ============================================================
 IMG_SIZE = 224
 MAX_LEN = 150
+MAX_SYMPTOMS = 5
 
 # ============================================================
 # CUSTOM CSS
@@ -94,7 +96,8 @@ st.markdown("""
     border-radius: 16px;
     border: 1px solid #334155;
 }
-            
+
+</style>
 """, unsafe_allow_html=True)
 
 # ============================================================
@@ -218,6 +221,63 @@ DISEASE_INFO = {
     """
 }
 
+
+# ============================================================
+# SYMPTOM OPTIONS
+# ============================================================
+SYMPTOM_GROUPS = {
+    "Kondisi Normal": [
+        "ayam aktif",
+        "nafsu makan baik",
+        "bulu bersih",
+        "kondisi tubuh normal",
+        "tidak menunjukkan gejala penyakit",
+    ],
+    "Gangguan Pencernaan": [
+        "diare",
+        "diare berdarah",
+        "feses merah",
+        "feses hijau",
+        "feses tidak normal",
+        "penurunan berat badan",
+    ],
+    "Gangguan Pernapasan": [
+        "gangguan pernapasan",
+        "ngorok",
+        "sesak napas",
+        "batuk",
+        "lendir hidung",
+        "mata berair",
+    ],
+    "Gangguan Saraf / NCD": [
+        "kepala terpuntir",
+        "leher memutar",
+        "tortikolis",
+        "tremor",
+        "kejang",
+        "kelumpuhan kaki",
+        "kelumpuhan sayap",
+        "kehilangan keseimbangan",
+    ],
+    "Kondisi Tubuh & Perilaku": [
+        "ayam lemah",
+        "ayam lesu",
+        "tidak aktif",
+        "nafsu makan menurun",
+        "penurunan aktivitas",
+        "demam",
+        "bulu kusut",
+    ],
+}
+
+DEFAULT_SYMPTOM_TEXT = "ayam sehat kondisi tubuh normal nafsu makan baik ayam aktif"
+
+
+def build_symptom_text(selected_symptoms):
+    if not selected_symptoms:
+        return DEFAULT_SYMPTOM_TEXT
+    return " ".join(selected_symptoms)
+
 # ============================================================
 # HEADER
 # ============================================================
@@ -275,13 +335,42 @@ with input_col1:
         )
 
 with input_col2:
-    symptom_text = st.text_area(
-        "Masukkan gejala ayam",
-        height=230,
-        placeholder="Contoh:\n- Kepala terpuntir\n- Nafsu makan menurun\n- Ayam lemah\n- Gangguan pernapasan"
-    )
+    st.markdown("**Pilih gejala ayam**")
+    st.caption(f"Pilih maksimal {MAX_SYMPTOMS} gejala utama yang paling terlihat. ")
 
-    st.caption("Jika gejala dikosongkan, sistem akan menggunakan teks default.")
+    selected_symptoms = []
+
+    for group_name, symptoms in SYMPTOM_GROUPS.items():
+        with st.expander(group_name, expanded=(group_name in ["Gangguan Saraf / NCD", "Kondisi Tubuh & Perilaku"])):
+            check_col1, check_col2 = st.columns(2)
+
+            for idx, symptom in enumerate(symptoms):
+                key = f"symptom_{group_name}_{idx}"
+                current_value = st.session_state.get(key, False)
+                limit_reached = len(selected_symptoms) >= MAX_SYMPTOMS
+                disabled = limit_reached and not current_value
+                target_col = check_col1 if idx % 2 == 0 else check_col2
+
+                with target_col:
+                    checked = st.checkbox(
+                        symptom.title(),
+                        key=key,
+                        disabled=disabled
+                    )
+
+                    if checked:
+                        selected_symptoms.append(symptom)
+
+    symptom_text = build_symptom_text(selected_symptoms)
+
+    if selected_symptoms:
+        st.success(f"{len(selected_symptoms)} dari {MAX_SYMPTOMS} gejala dipilih.")
+        if len(selected_symptoms) >= MAX_SYMPTOMS:
+            st.warning("Batas pilihan gejala tercapai. Hapus salah satu pilihan untuk memilih gejala lain.")
+        with st.expander("Lihat teks gejala yang dikirim ke model"):
+            st.write(symptom_text)
+    else:
+        st.info("Belum ada gejala dipilih. Sistem akan memakai kondisi default ayam sehat.")
 
 # ============================================================
 # PREDICTION BUTTON
@@ -352,27 +441,17 @@ if predict_clicked:
             # ====================================================
             # MAIN RESULT
             # ====================================================
-            st.subheader("Hasil Prediksi")
-
-            st.markdown(f"""
-            <div class="result-card">
-                <p style="color:#94a3b8; font-size:15px; margin-bottom:4px;">
-                    Diagnosis model
-                </p>
-
-                <h1 style="color:#22c55e; font-size:42px; margin-top:0;">
-                    {pred_label_display}
-                </h1>
-
-                <p style="color:#cbd5e1; font-size:17px;">
-                    Tingkat keyakinan model:
-                </p>
-
-                <h2 style="color:#38bdf8; margin-bottom:0;">
-                    {confidence:.2f}%
-                </h2>
-            </div>
-            """, unsafe_allow_html=True)
+            result_html = f"""
+<div class="result-card">
+  <p style="color:#94a3b8; font-size:15px; margin:0 0 6px 0;">Hasil Deteksi Penyakit</p>
+  <h1 style="color:#22c55e; font-size:42px; margin:0 0 14px 0;">{pred_label_display}</h1>
+  <p style="color:#cbd5e1; font-size:17px; margin:0 0 8px 0;">
+    Sistem memperkirakan ayam mengalami kondisi tersebut dengan tingkat keyakinan:
+  </p>
+  <h2 style="color:#38bdf8; margin:0;">{confidence:.2f}%</h2>
+</div>
+"""
+            st.markdown(result_html, unsafe_allow_html=True)
 
             # ====================================================
             # AI INSIGHT
