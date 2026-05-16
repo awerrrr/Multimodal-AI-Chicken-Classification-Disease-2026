@@ -283,7 +283,7 @@ def build_symptom_text(selected_symptoms):
 # ============================================================
 st.markdown("""
 <div class="hero-box">
-    <div class="title">Chicken Disease Detection AI</div>
+    <div class="title">🐔 Chicken Disease Detection AI</div>
     <div class="subtitle">
         Sistem deteksi penyakit ayam berbasis CNN dan NLP menggunakan Multimodal Deep Learning.
     </div>
@@ -317,7 +317,7 @@ with st.sidebar:
 # ============================================================
 # INPUT SECTION
 # ============================================================
-st.subheader("Input Data")
+st.subheader("Input Data 📸")
 
 input_col1, input_col2 = st.columns([1.1, 1])
 
@@ -378,7 +378,7 @@ with input_col2:
 st.markdown("---")
 
 predict_clicked = st.button(
-    "Prediksi Penyakit",
+    "Prediksi Penyakit 🔍",
     use_container_width=True
 )
 
@@ -388,7 +388,7 @@ predict_clicked = st.button(
 if predict_clicked:
 
     if uploaded_file is None:
-        st.warning("Silakan upload gambar ayam terlebih dahulu.")
+        st.warning("⚠️ Silakan upload gambar ayam terlebih dahulu.")
         st.stop()
 
     with st.spinner("Sedang menganalisis gambar dan gejala..."):
@@ -443,8 +443,8 @@ if predict_clicked:
             # ====================================================
             result_html = f"""
 <div class="result-card">
-  <p style="color:#94a3b8; font-size:15px; margin:0 0 6px 0;">Hasil Deteksi Penyakit</p>
-  <h1 style="color:#22c55e; font-size:42px; margin:0 0 14px 0;">{pred_label_display}</h1>
+  <p style="color:#94a3b8; font-size:15px; margin:0 0 6px 0;">Hasil Deteksi Penyakit 📊</p>
+  <h1 style="color:#22c55e; font-size:42px; margin:0 0 14px 0;">{pred_label_display} 🦠</h1>
   <p style="color:#cbd5e1; font-size:17px; margin:0 0 8px 0;">
     Sistem memperkirakan ayam mengalami kondisi tersebut dengan tingkat keyakinan:
   </p>
