@@ -139,7 +139,7 @@ dataset/
 * Model CNN berhasil mengklasifikasikan penyakit ayam dengan performa yang baik
 * Integrasi multimodal menunjukkan potensi peningkatan akurasi dibanding single model
 * Model mampu menangkap pola visual dan gejala secara bersamaan
-* Model berhasil mendapatkan akurasi sebesar **99,3%**
+* Model berhasil mendapatkan akurasi sebesar **98,9%**
 
 ---
 
