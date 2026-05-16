@@ -105,7 +105,7 @@ def load_components():
 
     # LOAD MODEL
     model = tf.keras.models.load_model(
-        "model/best_multimodal_macro_ncd.keras",
+        "model/best_multimodal_macro_ncd.h5",
         compile=False
     )
 
