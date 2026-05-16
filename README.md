@@ -67,19 +67,71 @@ dataset/
 
 ## 🔄 Pipeline
 
-1. Data Collection
-2. Data Preprocessing
+1. **Data Collection**
+   - Dataset gambar ayam diperoleh dari Kaggle.
+   - Dataset teks gejala/NLP disusun dan diolah terlebih dahulu di luar pipeline utama.
 
-   * Image resizing & normalization
-   * Text cleaning & extraction
-3. Model Development
+2. **Data Preparation**
+   - Data gambar dibagi ke dalam folder `train`, `validation`, dan `test`.
+   - Label gambar dinormalisasi agar konsisten dengan label model:
+     - `coccidiosis`
+     - `healthy`
+     - `new_castle_disease`
+     - `salmonella`
+   - Dataset NLP yang sudah diproses dimuat dari file CSV.
+   - Teks gejala dipasangkan ke data gambar berdasarkan label penyakit.
 
-   * CNN untuk image classification
-   * NLP untuk ekstraksi informasi
-4. Multimodal Fusion
-5. Model Evaluation
-6. Deployment-ready model
+3. **Text Preprocessing**
+   - Membersihkan teks dari nama label penyakit untuk mengurangi data leakage.
+   - Normalisasi istilah medis dan gejala.
+   - Penambahan variasi gejala khusus New Castle Disease, seperti:
+     - kepala terpuntir
+     - tortikolis
+     - gangguan saraf
+     - tremor
+     - kelumpuhan kaki/sayap
+   - Tokenisasi teks menggunakan Keras Tokenizer.
+   - Padding sequence dengan panjang maksimum 150 token.
 
+4. **Image Preprocessing**
+   - Gambar dibaca menggunakan OpenCV.
+   - Konversi warna dari BGR ke RGB.
+   - Resize gambar menjadi `224 x 224`.
+   - Normalisasi menggunakan `preprocess_input` dari MobileNetV2.
+   - Augmentasi gambar diterapkan pada data training.
+
+5. **Data Balancing**
+   - Oversampling dilakukan pada data training agar jumlah sampel tiap kelas seimbang.
+   - Kelas New Castle Disease yang memiliki jumlah data lebih sedikit diseimbangkan dengan kelas lain.
+
+6. **Model Development**
+   - Cabang image menggunakan MobileNetV2 sebagai feature extractor.
+   - Cabang teks menggunakan Embedding dan Bidirectional LSTM.
+   - Kedua fitur digabungkan menggunakan multimodal fusion.
+   - Output model berupa klasifikasi 4 kelas penyakit ayam.
+
+7. **Training & Fine-tuning**
+   - Training awal dilakukan dengan base model MobileNetV2 dalam kondisi frozen.
+   - Fine-tuning dilakukan dengan membuka sebagian layer akhir MobileNetV2.
+   - Checkpoint model disimpan berdasarkan performa terbaik.
+
+8. **Model Evaluation**
+   - Evaluasi dilakukan menggunakan:
+     - accuracy
+     - precision
+     - recall
+     - F1-score
+     - classification report
+     - confusion matrix
+   - Evaluasi juga membandingkan performa:
+     - multimodal
+     - image-only
+     - text-only
+
+9. **Deployment**
+   - Model terbaik disimpan dan digunakan pada dashboard Streamlit.
+   - Dashboard menerima input berupa gambar ayam dan pilihan gejala.
+   - Input gejala dibuat dalam bentuk checkbox untuk mengurangi risiko typo dari pengguna.
 ---
 
 ## 📊 Results
