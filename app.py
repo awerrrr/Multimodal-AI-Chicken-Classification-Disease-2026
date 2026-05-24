@@ -3,8 +3,9 @@ import tensorflow as tf
 import numpy as np
 import cv2
 import pickle
+import os
 
-from PIL import Image
+from PIL import Image, ImageOps
 
 from tensorflow.keras.preprocessing.sequence import pad_sequences
 from tensorflow.keras.applications.mobilenet_v2 import preprocess_input
@@ -24,6 +25,19 @@ st.set_page_config(
 IMG_SIZE = 224
 MAX_LEN = 150
 MAX_SYMPTOMS = 5
+MAX_IMAGE_SIZE_MB = 8
+MIN_IMAGE_DIMENSION = 128
+MIN_IMAGE_STD = 8.0
+MIN_IMAGE_BRIGHTNESS = 25
+MAX_IMAGE_BRIGHTNESS = 235
+MIN_PREDICTION_CONFIDENCE = 50.0
+IMAGE_GATE_MIN_CONFIDENCE = 50.0
+IMAGE_GATE_MIN_MARGIN = 8.0
+TEXT_DOMINANCE_CONFIDENCE = 70.0
+MAX_TEXT_CONFIDENCE_BOOST = 25.0
+ALLOWED_IMAGE_MIME_TYPES = {"image/jpeg", "image/png"}
+VALIDATOR_MODEL_PATH = "model/image_validator.h5"
+VALIDATOR_THRESHOLD = 0.80
 
 # ============================================================
 # CUSTOM CSS
@@ -120,18 +134,154 @@ def load_components():
     with open("model/label_encoder.pkl", "rb") as f:
         le = pickle.load(f)
 
-    return model, tokenizer, le
+    # Opsional: model validator biner untuk mengecek apakah gambar sesuai
+    # kriteria dataset sebelum model penyakit dijalankan.
+    image_validator = None
+    if os.path.exists(VALIDATOR_MODEL_PATH):
+        image_validator = tf.keras.models.load_model(
+            VALIDATOR_MODEL_PATH,
+            compile=False
+        )
+
+    return model, tokenizer, le, image_validator
 
 # ============================================================
 # LOAD SEMUA KOMPONEN
 # ============================================================
-model, tokenizer, le = load_components()
+model, tokenizer, le, image_validator = load_components()
 
 # ============================================================
-# PREPROCESS IMAGE
+# VALIDATE & PREPROCESS IMAGE
 # ============================================================
-def preprocess_image(uploaded_file):
-    image = Image.open(uploaded_file).convert("RGB")
+def read_uploaded_image(uploaded_file):
+    try:
+        uploaded_file.seek(0)
+        image = Image.open(uploaded_file)
+        image.verify()
+
+        uploaded_file.seek(0)
+        image = Image.open(uploaded_file)
+        image = ImageOps.exif_transpose(image).convert("RGB")
+        return image
+    except Exception as exc:
+        raise ValueError(
+            "File yang diupload tidak dapat dibaca sebagai gambar JPG/PNG yang valid."
+        ) from exc
+
+
+def validate_uploaded_image(uploaded_file):
+    mime_type = getattr(uploaded_file, "type", "")
+    if mime_type and mime_type not in ALLOWED_IMAGE_MIME_TYPES:
+        raise ValueError("Format gambar tidak sesuai. Gunakan file JPG, JPEG, atau PNG.")
+
+    file_size = getattr(uploaded_file, "size", 0)
+    max_file_size = MAX_IMAGE_SIZE_MB * 1024 * 1024
+    if file_size and file_size > max_file_size:
+        raise ValueError(
+            f"Ukuran gambar terlalu besar. Maksimal {MAX_IMAGE_SIZE_MB} MB."
+        )
+
+    image = read_uploaded_image(uploaded_file)
+    width, height = image.size
+
+    errors = []
+    if width < MIN_IMAGE_DIMENSION or height < MIN_IMAGE_DIMENSION:
+        errors.append(
+            f"resolusi minimal {MIN_IMAGE_DIMENSION}x{MIN_IMAGE_DIMENSION} piksel"
+        )
+
+    image_array = np.array(image)
+    gray_image = cv2.cvtColor(image_array, cv2.COLOR_RGB2GRAY)
+    brightness = float(gray_image.mean())
+    contrast = float(gray_image.std())
+
+    if brightness < MIN_IMAGE_BRIGHTNESS or brightness > MAX_IMAGE_BRIGHTNESS:
+        errors.append("pencahayaan gambar terlalu gelap atau terlalu terang")
+
+    if contrast < MIN_IMAGE_STD:
+        errors.append("gambar terlalu polos atau objek tidak terlihat jelas")
+
+    if errors:
+        raise ValueError("Gambar tidak sesuai kriteria: " + "; ".join(errors) + ".")
+
+    return image
+
+
+def validate_image_content(img_array):
+    if image_validator is None:
+        return
+
+    valid_score = image_validator.predict(
+        img_array,
+        verbose=0
+    )
+    valid_score = float(np.ravel(valid_score)[0])
+
+    if valid_score < VALIDATOR_THRESHOLD:
+        raise ValueError(
+            "Gambar tidak sesuai kriteria dataset. Upload gambar feses ayam yang jelas."
+        )
+
+
+def get_prediction_summary(probs):
+    probs = np.asarray(probs, dtype=np.float32)
+    sorted_indices = np.argsort(probs)
+    top_idx = int(sorted_indices[-1])
+    top_confidence = float(probs[top_idx]) * 100
+
+    if len(sorted_indices) > 1:
+        second_confidence = float(probs[int(sorted_indices[-2])]) * 100
+    else:
+        second_confidence = 0.0
+
+    return top_idx, top_confidence, top_confidence - second_confidence
+
+
+def validate_image_gate(image_only_probs):
+    image_idx, image_confidence, image_margin = get_prediction_summary(image_only_probs)
+
+    if image_confidence < IMAGE_GATE_MIN_CONFIDENCE:
+        raise ValueError(
+            "Gambar tidak sesuai kriteria atau tidak cukup dikenali sebagai citra feses ayam. "
+            f"Confidence gambar saja hanya {image_confidence:.2f}%, "
+            f"di bawah batas {IMAGE_GATE_MIN_CONFIDENCE:.0f}%."
+        )
+
+    if image_margin < IMAGE_GATE_MIN_MARGIN:
+        raise ValueError(
+            "Gambar tidak sesuai kriteria karena model gambar tidak yakin membedakan kelas. "
+            f"Selisih probabilitas kelas tertinggi hanya {image_margin:.2f}%, "
+            f"di bawah batas {IMAGE_GATE_MIN_MARGIN:.0f}%."
+        )
+
+    return image_idx, image_confidence, image_margin
+
+
+def validate_text_dominance(multimodal_probs, image_only_probs, text_only_probs, has_selected_symptoms):
+    if not has_selected_symptoms:
+        return
+
+    multi_idx, multi_confidence, _ = get_prediction_summary(multimodal_probs)
+    image_idx, image_confidence, _ = get_prediction_summary(image_only_probs)
+    text_idx, text_confidence, _ = get_prediction_summary(text_only_probs)
+    text_boost = multi_confidence - image_confidence
+
+    text_is_driving_result = (
+        multi_idx != image_idx
+        and multi_idx == text_idx
+        and text_confidence >= TEXT_DOMINANCE_CONFIDENCE
+        and text_boost > MAX_TEXT_CONFIDENCE_BOOST
+    )
+
+    if text_is_driving_result:
+        raise ValueError(
+            "Input ditolak karena hasil terlalu dipengaruhi oleh gejala, "
+            "sementara gambar tidak memberi dukungan yang cukup. "
+            "Upload gambar feses ayam yang sesuai agar prediksi tidak hanya mengikuti teks gejala."
+        )
+
+
+def preprocess_image(image):
     image = np.array(image)
     image = cv2.resize(image, (IMG_SIZE, IMG_SIZE))
     image = image.astype(np.float32)
@@ -328,11 +478,15 @@ with input_col1:
     )
 
     if uploaded_file is not None:
-        st.image(
-            uploaded_file,
-            caption="Gambar yang diupload",
-            use_container_width=True
-        )
+        try:
+            preview_image = read_uploaded_image(uploaded_file)
+            st.image(
+                preview_image,
+                caption="Gambar yang diupload",
+                use_container_width=True
+            )
+        except ValueError as e:
+            st.error(str(e))
 
 with input_col2:
     st.markdown("**Pilih gejala ayam**")
@@ -378,7 +532,7 @@ with input_col2:
 st.markdown("---")
 
 predict_clicked = st.button(
-    "Prediksi Penyakit 🔍",
+    "Prediksi Penyakit 🔍 ",
     use_container_width=True
 )
 
@@ -391,27 +545,35 @@ if predict_clicked:
         st.warning("⚠️ Silakan upload gambar ayam terlebih dahulu.")
         st.stop()
 
+    try:
+        validated_image = validate_uploaded_image(uploaded_file)
+    except ValueError as e:
+        st.error(str(e))
+        st.stop()
+
     with st.spinner("Sedang menganalisis gambar dan gejala..."):
 
         try:
-            img_array = preprocess_image(uploaded_file)
+            img_array = preprocess_image(validated_image)
+            validate_image_content(img_array)
+
+            # Image gate: gambar harus kuat dulu sebelum gejala boleh ikut menilai.
+            dummy_text = np.zeros(
+                (1, MAX_LEN),
+                dtype=np.int32
+            )
+            image_only_probs = predict_model(
+                img_array,
+                dummy_text
+            )
+            validate_image_gate(image_only_probs)
+
             text_array = preprocess_text(symptom_text)
 
             # Multimodal prediction
             multimodal_probs = predict_model(
                 img_array,
                 text_array
-            )
-
-            # Image-only approximation
-            dummy_text = np.zeros(
-                (1, MAX_LEN),
-                dtype=np.int32
-            )
-
-            image_only_probs = predict_model(
-                img_array,
-                dummy_text
             )
 
             # Text-only approximation
@@ -425,7 +587,14 @@ if predict_clicked:
                 text_array
             )
 
-            pred_idx = np.argmax(multimodal_probs)
+            validate_text_dominance(
+                multimodal_probs,
+                image_only_probs,
+                text_only_probs,
+                bool(selected_symptoms)
+            )
+
+            pred_idx, confidence, _ = get_prediction_summary(multimodal_probs)
 
             pred_label = le.inverse_transform(
                 [pred_idx]
@@ -436,7 +605,13 @@ if predict_clicked:
                 pred_label
             )
 
-            confidence = float(np.max(multimodal_probs)) * 100
+            if confidence < MIN_PREDICTION_CONFIDENCE:
+                raise ValueError(
+                    "Input tidak memenuhi kriteria prediksi. "
+                    f"Confidence model hanya {confidence:.2f}%, "
+                    f"di bawah batas {MIN_PREDICTION_CONFIDENCE:.0f}%. "
+                    "Upload gambar feses ayam yang lebih jelas atau lengkapi gejala klinis."
+                )
 
             # ====================================================
             # MAIN RESULT
@@ -511,6 +686,8 @@ if predict_clicked:
                     )
                 )
 
+        except ValueError as e:
+            st.error(str(e))
         except Exception as e:
             st.error(f"Terjadi error saat prediksi: {str(e)}")
 # ============================================================
