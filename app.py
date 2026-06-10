@@ -473,7 +473,7 @@ input_col1, input_col2 = st.columns([1.1, 1])
 
 with input_col1:
     uploaded_file = st.file_uploader(
-        "Upload gambar ayam *",
+        "Upload gambar feses ayam *",
         type=["jpg", "jpeg", "png"]
     )
 
@@ -542,7 +542,7 @@ predict_clicked = st.button(
 if predict_clicked:
 
     if uploaded_file is None:
-        st.warning("⚠️ Silakan upload gambar ayam terlebih dahulu.")
+        st.warning("⚠️ Silakan upload gambar feses ayam terlebih dahulu.")
         st.stop()
 
     try:
