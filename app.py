@@ -295,7 +295,7 @@ def preprocess_image(image):
 def preprocess_text(text):
 
     if text.strip() == "":
-        text = "ayam sehat"
+        text = " "
 
     seq = tokenizer.texts_to_sequences([text])
 
@@ -376,13 +376,6 @@ DISEASE_INFO = {
 # SYMPTOM OPTIONS
 # ============================================================
 SYMPTOM_GROUPS = {
-    "Kondisi Normal": [
-        "ayam aktif",
-        "nafsu makan baik",
-        "bulu bersih",
-        "kondisi tubuh normal",
-        "tidak menunjukkan gejala penyakit",
-    ],
     "Gangguan Pencernaan": [
         "diare",
         "diare berdarah",
@@ -420,14 +413,11 @@ SYMPTOM_GROUPS = {
     ],
 }
 
-DEFAULT_SYMPTOM_TEXT = "ayam sehat kondisi tubuh normal nafsu makan baik ayam aktif"
+DEFAULT_SYMPTOM_TEXT = ""
 
 
 def build_symptom_text(selected_symptoms):
-    if not selected_symptoms:
-        return DEFAULT_SYMPTOM_TEXT
     return " ".join(selected_symptoms)
-
 # ============================================================
 # HEADER
 # ============================================================
@@ -473,7 +463,7 @@ input_col1, input_col2 = st.columns([1.1, 1])
 
 with input_col1:
     uploaded_file = st.file_uploader(
-        "Upload gambar feses ayam *",
+        "Upload gambar ayam *",
         type=["jpg", "jpeg", "png"]
     )
 
@@ -524,7 +514,9 @@ with input_col2:
         with st.expander("Lihat teks gejala yang dikirim ke model"):
             st.write(symptom_text)
     else:
-        st.info("Belum ada gejala dipilih. Sistem akan memakai kondisi default ayam sehat.")
+        st.warning(
+            "⚠️ Gejala wajib dipilih sebelum melakukan prediksi."
+        )
 
 # ============================================================
 # PREDICTION BUTTON
@@ -542,9 +534,12 @@ predict_clicked = st.button(
 if predict_clicked:
 
     if uploaded_file is None:
-        st.warning("⚠️ Silakan upload gambar feses ayam terlebih dahulu.")
+        st.warning("⚠️ Silakan upload gambar ayam terlebih dahulu.")
         st.stop()
 
+    if not selected_symptoms:
+        st.warning("⚠️ Silakan pilih minimal satu gejala ayam terlebih dahulu.")
+        st.stop()
     try:
         validated_image = validate_uploaded_image(uploaded_file)
     except ValueError as e:
