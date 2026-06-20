@@ -425,7 +425,7 @@ st.markdown("""
 <div class="hero-box">
     <div class="title">🐔 Chicken Disease Detection AI</div>
     <div class="subtitle">
-        Sistem deteksi penyakit ayam berbasis CNN dan NLP menggunakan Multimodal Deep Learning.
+        Implementasi Multimodal Deep Learning Dengan Menggabungkan Model Cnn Dan Nlp Untuk Klasifikasi Penyakit Ayam.
     </div>
 </div>
 """, unsafe_allow_html=True)
