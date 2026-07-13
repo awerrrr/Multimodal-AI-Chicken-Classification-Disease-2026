@@ -376,6 +376,13 @@ DISEASE_INFO = {
 # SYMPTOM OPTIONS
 # ============================================================
 SYMPTOM_GROUPS = {
+    "Kondisi Sehat / Tidak Ada Gejala": [
+        "berat badan normal",
+        "kondisi tubuh baik",
+        "tidak ada penurunan kondisi tubuh",
+        "produksi telur normal",
+        "nafsu makan baik",
+    ],
     "Gangguan Pencernaan": [
         "diare",
         "diare berdarah",
@@ -425,7 +432,7 @@ st.markdown("""
 <div class="hero-box">
     <div class="title">🐔 Chicken Disease Detection AI</div>
     <div class="subtitle">
-        Implementasi Multimodal Deep Learning Dengan Menggabungkan Model CNN Dan NLP Untuk Klasifikasi Penyakit Ayam.
+        Sistem deteksi penyakit ayam berbasis CNN dan NLP menggunakan Multimodal Deep Learning.
     </div>
 </div>
 """, unsafe_allow_html=True)
@@ -457,13 +464,13 @@ with st.sidebar:
 # ============================================================
 # INPUT SECTION
 # ============================================================
-st.subheader("Input Data 📊")
+st.subheader("Input Data 📸")
 
 input_col1, input_col2 = st.columns([1.1, 1])
 
 with input_col1:
     uploaded_file = st.file_uploader(
-        "Upload feses ayam *",
+        "Upload gambar ayam *",
         type=["jpg", "jpeg", "png"]
     )
 
@@ -481,11 +488,12 @@ with input_col1:
 with input_col2:
     st.markdown("**Pilih gejala ayam**")
     st.caption(f"Pilih maksimal {MAX_SYMPTOMS} gejala utama yang paling terlihat. ")
+    st.caption("Jika ayam terlihat sehat, pilih indikator pada grup **Kondisi Sehat / Tidak Ada Gejala**.")
 
     selected_symptoms = []
 
     for group_name, symptoms in SYMPTOM_GROUPS.items():
-        with st.expander(group_name, expanded=(group_name in ["Gangguan Saraf / NCD", "Kondisi Tubuh & Perilaku"])):
+        with st.expander(group_name, expanded=(group_name in ["Kondisi Sehat / Tidak Ada Gejala", "Gangguan Saraf / NCD", "Kondisi Tubuh & Perilaku"])):
             check_col1, check_col2 = st.columns(2)
 
             for idx, symptom in enumerate(symptoms):
