@@ -470,7 +470,7 @@ input_col1, input_col2 = st.columns([1.1, 1])
 
 with input_col1:
     uploaded_file = st.file_uploader(
-        "Upload gambar ayam *",
+        "Upload gambar kotoran ayam *",
         type=["jpg", "jpeg", "png"]
     )
 
