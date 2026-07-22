@@ -477,11 +477,9 @@ with input_col1:
     if uploaded_file is not None:
         try:
             preview_image = read_uploaded_image(uploaded_file)
-            st.image(
-                preview_image,
-                caption="Gambar yang diupload",
-                width=280
-            )
+            img_col, _ = st.columns([1, 0.3])  # sisa ruang di kanan jadi "spacer"
+            with img_col:
+                st.image(preview_image, caption="Gambar yang diupload", width=280)
         except ValueError as e:
             st.error(str(e))
 
