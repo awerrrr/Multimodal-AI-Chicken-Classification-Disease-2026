@@ -480,7 +480,7 @@ with input_col1:
             st.image(
                 preview_image,
                 caption="Gambar yang diupload",
-                use_container_width=True
+                width=280
             )
         except ValueError as e:
             st.error(str(e))
