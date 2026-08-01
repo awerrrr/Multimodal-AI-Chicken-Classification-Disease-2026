@@ -432,7 +432,7 @@ st.markdown("""
 <div class="hero-box">
     <div class="title">🐔 Chicken Disease Detection AI</div>
     <div class="subtitle">
-        Sistem deteksi penyakit ayam berbasis CNN dan NLP menggunakan Multimodal Deep Learning.
+        Sistem deteksi penyakit ayam berbasis CNN dan BiLSTM menggunakan Multimodal Deep Learning.
     </div>
 </div>
 """, unsafe_allow_html=True)
@@ -448,7 +448,7 @@ with st.sidebar:
 
     - Citra feses ayam
     - Teks gejala klinis
-    - Model multimodal CNN + NLP
+    - Model multimodal CNN + BiLSTM
     """)
 
     st.markdown("**Kelas klasifikasi:**")
@@ -669,7 +669,7 @@ if predict_clicked:
                 st.metric("CNN Image", f"{image_conf:.1f}%")
 
             with metric_col3:
-                st.metric("NLP Text", f"{text_conf:.1f}%")
+                st.metric("BiLSTM Text", f"{text_conf:.1f}%")
 
             st.caption(
                 "Catatan: image-only dan text-only di sini adalah simulasi dengan input dummy, "
@@ -701,7 +701,7 @@ st.markdown("""
 <br>
 Multimodal Deep Learning Research Project
 <br><br>
-TensorFlow • Streamlit • CNN • NLP
+TensorFlow • Streamlit • CNN • BiLSTM
 
 </div>
 """, unsafe_allow_html=True)
